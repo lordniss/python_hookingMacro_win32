@@ -2,7 +2,8 @@
 
 python module by tkinter and win32
 
-en-
+en:
+
 use tkinter for GUI
 
 use win32 for Hooking and Macro Replay
@@ -11,7 +12,8 @@ only for windows 7 over, and need some update to be better action
 
 I hope that someone use this one who need to study win32 and tkinter
 
-kor-
+kor:
+
 파이썬 공부하는 겸 만든 후킹매크로 프로그램입니다.
 
 gui는 tkinter로, 후킹과 매크로는 win32 모듈로 하였습니다.
