@@ -25,7 +25,7 @@ class HookingThread:
         'log_path', 'keymouselog', 'send_queue', 'action_visible',
     )  # 속도상승을 위한 slots 설정
 
-    def __init__(self, log_path="C:/KeyMouseLog.txt"):
+    def __init__(self, log_path="C:/KeyMouseLog.txt", send_queue: queue.Queue = None):
         # 후킹준비하기
         self.hooked, self.hooked2 = None, None  # 키보드 후킹 핸들러 전달용, 마우스 후킹 핸들러 전달용
         self.user32 = WinDLL('user32', use_last_error=True)  # user32 = windll.user32
@@ -36,13 +36,12 @@ class HookingThread:
         self.log_path = log_path
         self.keymouselog = []
         # 창에 append 전달용 queue
-        self.send_queue = queue.Queue()
+        self.send_queue = send_queue
         self.action_visible = True
 
-    def get_sendQueue(self):
-        return self.send_queue
-
     def print1(self, *args, **kwargs):
+        print("append queue")
+        print(*args, **kwargs)
         self.send_queue.put((args, kwargs))
 
     def _getFPTR(self, fn):  # 포인터로 만들어줌.
@@ -191,7 +190,8 @@ if __name__ == '__main__':
     log_path = "C:/KeyMouseLog.txt"
     txwindow = TextThread()  # 창 쓰레드 준비
     txwindow.start_window()  # 창 쓰레드 시작. start가 아니라 start_window로 실행할 것.
-    hooker = HookingThread(log_path=log_path)  # 창 쓰레드 시작 및 후커 쓰레드 준비
+    send_queue = queue.Queue()
+    hooker = HookingThread(log_path=log_path, send_queue=send_queue)  # 창 쓰레드 시작 및 후커 쓰레드 준비
     hooker.start_hookThread()  # 후커 쓰레드 시작
 
     txwindow.set_button_action(btn2=hooker.start_hookThread)  # 버튼1 실행
@@ -202,9 +202,12 @@ if __name__ == '__main__':
     def append_manager(*args, **kwargs):
         while True:
             # if not send_queue.empty: 을 하게 되면 오히려 queue의 block이 해제되어 버리므로, if문은 넣지 말아야 한다.
-            send_queue = hooker.get_sendQueue()  # queue가 자동으로 update 전까지 대기상태로 만들어준다.
-            args, kwargs = send_queue.get()  # queue가 empty이면 get 되지 않으며, 대기하게 된다.
-            txwindow.append(*args, **kwargs)
+            try:
+                args, kwargs = send_queue.get(timeout=5)  # queue가 empty이면 get 되지 않으며, 대기하게 된다.
+                txwindow.append(*args, **kwargs)
+            except queue.Empty as e:
+                print(e.args)
+
 
 
     append_thread = threading.Thread(target=append_manager, daemon=True, name='AppendThread')

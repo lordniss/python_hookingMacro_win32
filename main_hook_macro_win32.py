@@ -25,17 +25,16 @@ class HookingMacroWin32:
     def __init__(self, log_path="c:\\keymouselog.txt"):
         #####
         # initialize classes
+        self.append_queue = queue.Queue()
         self.log_path = log_path
         self.text_thread = TextThread()
-        self.hooking_thread = HookingThread(log_path=log_path)
-        self.replay_thread = ReplayThread(log_path=log_path)
+        self.hooking_thread = HookingThread(log_path=log_path, send_queue=self.append_queue)
+        self.replay_thread = ReplayThread(log_path=log_path, send_queue=self.append_queue)
         #####
         # set append thread
         self.ender = False
-        self.append_hook_thread = threading.Thread(
-            target=self.append_manager_hook, daemon=False, name='AppendHookThread')
-        self.append_replay_thread = threading.Thread(
-            target=self.append_manager_replay, daemon=False, name='AppendReplayThread')
+        self.append_thread = threading.Thread(
+            target=self.append_manager, daemon=False, name='AppendThread')
         # set keyinput thread
         self.user32 = WinDLL('user32', use_last_error=True)  # user32 = windll.user32
         self.kernel32 = windll.kernel32
@@ -58,10 +57,14 @@ class HookingMacroWin32:
             self.text_thread.set_button_action(btn3=lambda: self._stop_sub())  # 버튼3 실행
             self.text_thread.set_button_action(btn4=lambda: self.stop_main())  # 버튼4 실행
             self.text_thread.set_button_action(xbtn=lambda: self.stop_main())  # x 버튼 실행 설정
+        """
         if not self.append_hook_thread.is_alive():  # text_window에 값을 전달하는 append thread
             self.append_hook_thread.start()
         if not self.append_replay_thread.is_alive():  # text_window에 값을 전달하는 append thread
             self.append_replay_thread.start()
+            """
+        if not self.append_thread.is_alive():
+            self.append_thread.start()
         if not self.keychk_thread.is_alive():  # 입력된 키값을 모니터링하는 key_thread 시작
             self.keychk_thread.start()
         self._ismain = True
@@ -116,27 +119,20 @@ class HookingMacroWin32:
     def _push_open_button(self):
         filename: str = self.text_thread.open_file()
         filename = filename.replace("/", u"\\")
-        self.log_path = filename
+        if filename == "":
+            pass
+        else:
+            self.log_path = filename
         self.text_thread.append("set new log_path : ", self.log_path)
     ###############################
 
-    def append_manager_hook(self):
-        send_queue = self.hooking_thread.get_sendQueue()
+    def append_manager(self):
         while True:
+            print("append manager")
             try:
-                get_queue = send_queue.get(block=True, timeout=5)
+                get_queue = self.append_queue.get(block=True, timeout=5)
                 args, kwargs = get_queue
-                if self.text_thread.is_alive():
-                    self.text_thread.append(*args, *kwargs)
-            except queue.Empty as e:
-                print(e.args)
-
-    def append_manager_replay(self):
-        send_queue = self.replay_thread.get_sendQueue()
-        while True:
-            try:
-                get_queue = send_queue.get(block=True, timeout=5)
-                args, kwargs = get_queue
+                print(*args, **kwargs)
                 if self.text_thread.is_alive():
                     self.text_thread.append(*args, *kwargs)
             except queue.Empty as e:

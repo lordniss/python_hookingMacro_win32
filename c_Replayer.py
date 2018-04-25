@@ -19,16 +19,13 @@ from python_Hook_Macro_win32.VK_CODE import VK_CODE
 
 
 class ReplayThread:
-    def __init__(self, log_path="c:\\KeyMouseLog.txt"):
+    def __init__(self, log_path="c:\\KeyMouseLog.txt", send_queue:queue.Queue=None):
         # for replayer
         self.log_path = log_path
         self.run_th = None
         self.stopper = False
         # for append
-        self.send_queue = queue.Queue()
-
-    def get_sendQueue(self):
-        return self.send_queue
+        self.send_queue = send_queue
 
     def print1(self, *args, **kwargs):  # window 종료시 대비한 에러방지
         self.send_queue.put((args, kwargs))
@@ -122,8 +119,9 @@ if __name__ == '__main__':
     txwindow = TextThread()  # 창 쓰레드 준비
     txwindow.start_window()
     txwindow.update_window_attribute(btn2="Start", btn3="Stop")
-    hooker = HookingThread(log_path=log_path)  # 창 쓰레드 시작 및 후커 쓰레드 준비
-    replayer = ReplayThread()  # 리플레이 동작 준비
+    send_queue = queue.Queue()
+    hooker = HookingThread(log_path=log_path, send_queue=send_queue)  # 창 쓰레드 시작 및 후커 쓰레드 준비
+    replayer = ReplayThread(log_path=log_path, send_queue=send_queue)  # 리플레이 동작 준비
 
 
     def start_replay_thread():
@@ -153,14 +151,11 @@ if __name__ == '__main__':
 
     def append_thread():  # queue checking error -> need change
         while True:
-            get_q1 = hooker.get_sendQueue()
-            get_q2 = replayer.get_sendQueue()
-            if not get_q1.empty():
-                args, kwags = get_q1.get()
+            try:
+                args, kwags = send_queue.get(timeout=5)
                 txwindow.append(*args, **kwags)
-            if not get_q2.empty():
-                args, kwags = get_q2.get()
-                txwindow.append(*args, **kwags)
+            except queue.Empty as e:
+                print(e.args)
 
 
     txwindow.set_button_action(
