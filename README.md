@@ -1,8 +1,15 @@
-# python_hookingMacro_win32
+#python_hookingMacro_win32
+- python module by tkinter and ctype win32 for Windows
 
-python module by tkinter and win32
+###[Main Contents]
 
-en:
+1. Hooking Keyboard and Mouse by ctype and win32
+
+2. Macro Replay for Keyboard Event/DirectX Event
+
+3. Tkinter Textview_only Window  
+
+####en description:
 
 use tkinter for GUI
 
@@ -12,7 +19,7 @@ only for windows 7 over, and need some update to be better action
 
 I hope that someone use this one who need to study win32 and tkinter
 
-kor:
+####kor description:
 
 파이썬 공부하는 겸 만든 후킹매크로 프로그램입니다.
 
