@@ -68,18 +68,24 @@ class HookingMacroWin32:
         if not self.keychk_thread.is_alive():  # 입력된 키값을 모니터링하는 key_thread 시작
             self.keychk_thread.start()
         self._ismain = True
-        # 시작 메시지
+        # 시작 메시지 welcome message
         self.text_thread.append(
             "--------------------------------------------------------------------\n",
             " Hello! This is hooking and Replaying Program.\n",
-            " - If you want to hook, press HOOK button or 'F2'\n",
-            " - If you want to replay hooked action, press REPLAY button or 'F3'\n",
-            " - When you wanna stop your action, press STOP button or 'ESC'\n",
-            " - If you need to disable viewing hooked command, press 'F4'\n"
+            " - If you want to REPLAY HOOKED ACTION, press REPLAY button or 'F2'\n",
+            " - If you want to HOOK, press HOOK button or 'F3'\n",
+            " - When you wanna STOP YOUR ACTION, press STOP button or 'ESC'\n",
+            " - If you want open ANOTHER MACRO FILE, press OPEN button or 'F5'\n",
+            " - If you need to DISABLE SHOW HOOKED KEY, press 'F7'\n"
+            "           (it is usefull to speed up hooking process)\n",
+            " - If you want to press key in DIRECTX GAME,\n"
+            "       switch from keyboard event to directX input by press 'F8'\n"
             "--------------------------------------------------------------------\n",
         )
-        self.text_thread.append("default log_path : ", self.log_path)
-
+        self.text_thread.append("default log path : ", self.log_path)
+        self.text_thread.append("        keypress option : ", self.replay_thread.key_input_type.replace('_', ' '))
+        self.text_thread.append("        show hooked key option : ",
+                                'able' if self.hooking_thread.action_visible else 'disable')
     def stop_main(self):
         self.text_thread.destroy()  # 창 정지
         self.hooking_thread.stop_hookThread()  # 후커 정지
@@ -124,41 +130,53 @@ class HookingMacroWin32:
         else:
             self.log_path = filename
         self.text_thread.append("set new log_path : ", self.log_path)
+
     ###############################
 
     def append_manager(self):
         while True:
-            print("append manager")
             try:
                 get_queue = self.append_queue.get(block=True, timeout=5)
                 args, kwargs = get_queue
-                print(*args, **kwargs)
+                # print(*args, **kwargs)
                 if self.text_thread.is_alive():
                     self.text_thread.append(*args, *kwargs)
             except queue.Empty as e:
                 print(e.args)
+
     ###############################
 
     def _keychk_proc(self, nCode, wParam, lParam):  # replay중 runner를 종료시키기 위한 프로시져
-        if wParam is not win32con.WM_KEYDOWN:  # keydown 만 처리
-            return self.user32.CallNextHookEx(self.hooked, nCode, wParam, lParam)
-        if VK_CODE['esc'] == int(lParam[0]):
-            self.text_thread.append("ESC inputed")
-            self._stop_sub()
-        elif VK_CODE['F2'] == int(lParam[0]):
-            self.text_thread.append("F2 inputed")
-            self._start_hooking_thread()
-        elif VK_CODE['F3'] == int(lParam[0]):
-            self.text_thread.append("F3 inputed")
-            self._start_replay_thread()
-        elif VK_CODE['F4'] == int(lParam[0]):
-            self.text_thread.append("F4 inputed")
-            if self.hooking_thread.action_visible:
-                self.hooking_thread.action_visible = False
-                self.text_thread.append("hooked command view is disabled")
-            else:
-                self.hooking_thread.action_visible = True
-                self.text_thread.append("hooked command view is abled")
+        if wParam is win32con.WM_KEYDOWN:  # keydown 처리
+            if VK_CODE['esc'] == int(lParam[0]):
+                # self.text_thread.append("ESC inputed")
+                self._stop_sub()
+            elif VK_CODE['F2'] == int(lParam[0]):
+                # self.text_thread.append("F2 inputed")
+                self._start_replay_thread()
+            elif VK_CODE['F3'] == int(lParam[0]):
+                # self.text_thread.append("F3 inputed")
+                # time.sleep(0.5)  # to not press 'f3' keyup.
+                self._start_hooking_thread()
+            elif VK_CODE['F5'] == int(lParam[0]):
+                # self.text_thread.append('F5 inputed')
+                self._push_open_button()
+            elif VK_CODE['F7'] == int(lParam[0]):
+                # self.text_thread.append("F7 inputed")
+                if self.hooking_thread.action_visible:
+                    self.hooking_thread.action_visible = False
+                    self.text_thread.append('"hooked command view" is disabled')
+                else:
+                    self.hooking_thread.action_visible = True
+                    self.text_thread.append('"hooked command view" is abled')
+            elif VK_CODE['F8'] == int(lParam[0]):
+                if self.replay_thread.key_input_type == 'event_input':
+                    self.replay_thread.key_input_type = "directx_input"
+                    self.text_thread.append('switch to "DirectX Event" input')
+                else:
+                    self.replay_thread.key_input_type = 'event_input'
+                    self.text_thread.append('switch to "Keyboard Event" input')
+        # elif wParam is win32con.WM_KEYUP:  # keydup 처리
         #####
         return self.user32.CallNextHookEx(None, nCode, wParam, lParam)
 

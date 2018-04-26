@@ -153,7 +153,7 @@ class TextThread(threading.Thread):
 
     def open_file(self):
         filename = self._txwin.open_file()
-        print(filename)
+        # print(filename)
         return filename
 
     def _inner(self):  # thread의 target으로 지정할 수 있게, mainloop를 잡아서 받을 수 있는 하나의 함수로 만듬

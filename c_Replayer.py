@@ -16,20 +16,25 @@ import threading
 from python_Hook_Macro_win32.c_HookingThread import HookingThread
 from python_Hook_Macro_win32.tk_TextWindow import TextThread
 from python_Hook_Macro_win32.VK_CODE import VK_CODE
+import ctypes
+from python_Hook_Macro_win32.c_Macro_win32_directX import PressKey, ReleaseKey
+from python_Hook_Macro_win32.DirectInput_CODE import DI_CODE
 
 
 class ReplayThread:
-    def __init__(self, log_path="c:\\KeyMouseLog.txt", send_queue:queue.Queue=None):
+    def __init__(self, log_path="c:\\KeyMouseLog.txt", send_queue: queue.Queue = None):
         # for replayer
         self.log_path = log_path
         self.run_th = None
         self.stopper = False
         # for append
         self.send_queue = send_queue
+        # set press type  kb_event/directX  # default : event_input
+        self.key_input_type = "event_input"
 
     def print1(self, *args, **kwargs):  # window 종료시 대비한 에러방지
+        # print(*args, **kwargs)
         self.send_queue.put((args, kwargs))
-        print(*args, **kwargs)
 
     def _get_cmdlist(self):  # log파일에서 cmd 불러와서 list(OrderDict (any, any)) 로 읽어들인다.
         with open(self.log_path, 'r', encoding='utf-8') as f:
@@ -37,35 +42,64 @@ class ReplayThread:
             f.close()
         return cmdlist
 
+    def _keypress(self):
+        if self.key_input_type == "event_input":
+            def ftn(input_key):
+                win32api.keybd_event(VK_CODE[input_key], 0, 0, 0)
+            return ftn
+        elif self.key_input_type == "directx_input":
+            def ftn(input_key):
+                PressKey(DI_CODE[input_key])
+            return ftn
+
+    def _keyrelease(self):
+        if self.key_input_type == "event_input":
+            def ftn(input_key):
+                win32api.keybd_event(VK_CODE[input_key], 0, win32con.KEYEVENTF_KEYUP, 0)
+            return ftn
+        elif self.key_input_type == "directx_input":
+            def ftn(input_key):
+                ReleaseKey(DI_CODE[input_key])
+            return ftn
+
     def replay_runner(self, pace_time=0.01):  # 진짜로 replay 를 하는 부분 / pace_time은 동작과 동작 사이에 최소시간.
         self.print1("start replay..")
         # 파일에서 커맨드를 읽어서 실행한다
         cmdlist = self._get_cmdlist()  # 파일 전체의 OrderedDict 값을 받아온다. type 등의 키값은 자동으로 제외.
-        print(cmdlist)
+        # print(cmdlist)
+        # set keyinput type keyboard event/directx event
+        keypress = self._keypress()
+        keyrelease = self._keyrelease()
         # 초기값인 Start 처리 / state key 들을 확인해서 입력한다
         cmd = cmdlist.pop(0)  # start 뽑아낸다
         start_pace = float(cmd['time'])
         start_time = time.time()
-        """ 시작키 설정이 os 종류에 따라 제대로 받아지지가 않는다. 사실 필요없기도 함.
+        # 시작키 설정이 os 종류에 따라 제대로 받아지지가 않는다.
         state_keys = ['caps_lock', 'num_lock', 'scroll_lock', 'kor/en_key']  # state_key 설정
-        if cmd['type'] == 'state_keys':
+        stateget = [str(win32api.GetKeyState(VK_CODE[key])) for key in state_keys]  # 키값 받아 0/1로 저장
+        if cmd['input'] == 'state_keys':
+            # print(cmd['info'], stateget)
+            state = [cmd['info'][0], cmd['info'][1], cmd['info'][2], cmd['info'][3:]]
             for i in range(len(state_keys)):
-                if cmd['info'][i] == '1':
-                    win32api.keybd_event(VK_CODE[state_keys[i]], 0, 0, 0)
-                win32api.keybd_event(VK_CODE[state_keys[i]], 0, win32con.KEYEVENTF_KEYUP, 0)
-        """
+                if state[i] != stateget[i]:
+                    keypress(state_keys[i])
+                    keyrelease(state_keys[i])
+
         # Start 이후 본 내용 처리
         while True:
             if (time.time() - start_time) > (float(cmd['time']) - start_pace):
                 if cmd['type'] == 'end':  # 마지막인지 체크.
-                    print("sttoper1")
                     break
                 # 키보드 입력 처리
                 if cmd['type'] == 'keyboard':
                     if cmd['info'] == "keydown":  # while문 자체에서 시간지연 있으므로, time.sleep() 안넣어도 됨.
-                        win32api.keybd_event(VK_CODE[cmd['input']], 0, 0, 0)
+                        # win32api.keybd_event(VK_CODE[cmd['input']], 0, 0, 0)
+                        # PressKey(DI_CODE(cmd['input']))
+                        keypress(cmd['input'])
                     elif cmd['info'] == "keyup":
-                        win32api.keybd_event(VK_CODE[cmd['input']], 0, win32con.KEYEVENTF_KEYUP, 0)
+                        # win32api.keybd_event(VK_CODE[cmd['input']], 0, win32con.KEYEVENTF_KEYUP, 0)
+                        # ReleaseKey(DI_CODE(cmd['input']))
+                        keyrelease(cmd['input'])
                 # 마우스 입력 처리
                 elif cmd['type'] == 'mouse':
                     win32api.SetCursorPos([int(pos) for pos in cmd['info'].split('|')])  # 언패킹한 위치로 마우스 이동
@@ -79,16 +113,13 @@ class ReplayThread:
                         win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0)  # 마우스 입력
                 # 입력하고 cmd 확인해서 앞에서부터 pop으로 꺼내기
                 if len(cmdlist) == 0:
-                    print("sttoper2")
                     break  # cmdlist 를 다 실행했을 경우, 종료.
                 cmd = cmdlist.pop(0)
             else:
                 if self.stopper:  # 중간에 멈추는거 체크. 작동시간 우려로 input 다음에 배치.
-                    print("sttoper3")
                     self.stopper = False
                     break  # replay thread 종료
                 time.sleep(pace_time)  # pace_time 의 간격 사이에 명령이 다 이루어져야, 다음 pace_time을 지난다.
-        print("sttope4")
         self.print1("replay ended")
         return
 
@@ -173,6 +204,7 @@ if __name__ == '__main__':
             replayer.stop_replay()
             print("window end , hooker killed")
             import os
+
             os._exit(1)
             break
 

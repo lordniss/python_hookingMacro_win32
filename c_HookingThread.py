@@ -21,7 +21,7 @@ from python_Hook_Macro_win32.tk_TextWindow import TextThread
 class HookingThread:
     __slots__ = (
         'hooked', 'hooked2', 'user32', 'kernel32',
-        'hookThread', 'hookThread_name', 'starttime', 'endtime',
+        'hookThread', 'hookThread_name', 'starttime', 'endtime', 'stateget',
         'log_path', 'keymouselog', 'send_queue', 'action_visible',
     )  # 속도상승을 위한 slots 설정
 
@@ -35,13 +35,15 @@ class HookingThread:
         # 로그파일 경로
         self.log_path = log_path
         self.keymouselog = []
+        self.stateget = []
+        self.starttime = 0
         # 창에 append 전달용 queue
         self.send_queue = send_queue
         self.action_visible = True
 
     def print1(self, *args, **kwargs):
-        print("append queue")
-        print(*args, **kwargs)
+        # print("append queue")
+        # print(*args, **kwargs)
         self.send_queue.put((args, kwargs))
 
     def _getFPTR(self, fn):  # 포인터로 만들어줌.
@@ -92,21 +94,26 @@ class HookingThread:
                 self.print1(self.keymouselog[-1])  # 창에 가장 최신의 keymouselog 입력정보 출력
         return self.user32.CallNextHookEx(self.hooked2, nCode, wParam, lParam)
 
-    def _msg_loop(self):  # 쓰레드 대상
-        pointer1 = self._getFPTR(self._hookProc)
-        self.hooked = self.user32.SetWindowsHookExA(  # 키보드 후커
-            win32con.WH_KEYBOARD_LL,  # 후킹 타입. 13 0xD
-            pointer1,  # 후킹 프로시저
-            self.kernel32.GetModuleHandleA(None),  # 앞서 지정한 후킹 프로시저가 있는 핸들
-            0  # thread id. 0일 경우 글로벌로 전체를 후킹한다.
-        )  # hook 인스톨
-        pointer2 = self._getFPTR(self._hookProc2)
-        self.hooked2 = self.user32.SetWindowsHookExA(  # 키보드 후커
-            win32con.WH_MOUSE_LL,  # 후킹 타입. 13 0xD
-            pointer2,  # 후킹 프로시저
-            self.kernel32.GetModuleHandleA(None),  # 앞서 지정한 후킹 프로시저가 있는 핸들
-            0  # thread id. 0일 경우 글로벌로 전체를 후킹한다.
-        )  # hook2
+    def _msg_loop(self, keyboard=True, mouse=True):  # 쓰레드 대상
+        if keyboard == True:
+            pointer1 = self._getFPTR(self._hookProc)
+            self.hooked = self.user32.SetWindowsHookExA(  # 키보드 후커
+                win32con.WH_KEYBOARD_LL,  # 후킹 타입. 13 0xD
+                pointer1,  # 후킹 프로시저
+                self.kernel32.GetModuleHandleA(None),  # 앞서 지정한 후킹 프로시저가 있는 핸들
+                0  # thread id. 0일 경우 글로벌로 전체를 후킹한다.
+            )  # hook 인스톨
+        if mouse == True:
+            pointer2 = self._getFPTR(self._hookProc2)
+            self.hooked2 = self.user32.SetWindowsHookExA(  # 키보드 후커
+                win32con.WH_MOUSE_LL,  # 후킹 타입. 13 0xD
+                pointer2,  # 후킹 프로시저
+                self.kernel32.GetModuleHandleA(None),  # 앞서 지정한 후킹 프로시저가 있는 핸들
+                0  # thread id. 0일 경우 글로벌로 전체를 후킹한다.
+            )  # hook2
+        if keyboard == False and mouse == False:
+            self.print1("no hooker installed")
+            return
         self.print1("hooker installed")
         msg = MSG()
         while True:
@@ -114,7 +121,7 @@ class HookingThread:
             if bRet == 1:
                 break
             if bRet == -1:
-                print(bRet, " raise WinError(get_last_error())")
+                # print(bRet, " raise WinError(get_last_error())")
                 # raise WinError(get_last_error())
                 break
             self.user32.TranslateMessage(byref(msg))
@@ -124,12 +131,10 @@ class HookingThread:
         with open(self.log_path, 'w', encoding='UTF-8', newline='') as f:
             keys = ('type', 'input', 'info', 'time')
             cwrite = csv.DictWriter(f, fieldnames=keys)  # DictWriter 사용
-            state_keys = ['caps_lock', 'num_lock', 'scroll_lock', 'kor/en_key']  # state_key 설정, 시작설정
-            listget = [str(win32api.GetKeyState(VK_CODE[key])) for key in state_keys]  # 키값 받아 0/1로 저장
-            print(listget)  # 마지막 네번째 kor/en_key 값이 이상함.
+            # print(stateget)  # 마지막 네번째 kor/en_key 값이 이상함.
             cwrite.writeheader()
             cwrite.writerow({'type': 'start', 'input': 'state_keys',  # start log 시작
-                             'info': ''.join(listget), 'time': str(self.starttime)})
+                             'info': ''.join(self.stateget), 'time': str(self.starttime)})
             for log in self.keymouselog:
                 kk = list(keys)
                 tmpdic = {kk.pop(0): x for x in log}
@@ -139,13 +144,15 @@ class HookingThread:
             self.keymouselog = []  # log 초기화
             f.close()  # Logging 기록
 
-    def start_hookThread(self, log_path=None):  # 훅쓰레드 실행.
+    def start_hookThread(self, log_path=None, keyboard=True, mouse=True):  # 훅쓰레드 실행.
+        state_keys = ['caps_lock', 'num_lock', 'scroll_lock', 'kor/en_key']  # state_key 설정, 시작설정
+        self.stateget = [str(win32api.GetKeyState(VK_CODE[key])) for key in state_keys]  # 키값 받아 0/1로 저장
         self.starttime = time.time()
         if log_path is not None:
             self.log_path = log_path
         if self.hookThread_name is None:  # 생성했으면 참, 이미 있으면 거짓
-            self.hookThread = threading.Thread(target=self._msg_loop, args=(),  # 키보드/마우스 동시후킹
-                                               daemon=True, name="HookingKeyboardMouseThread")
+            self.hookThread = threading.Thread(target=self._msg_loop, args=(keyboard, mouse),
+                                               daemon=True, name="HookingKeyboardMouseThread")  # 키보드/마우스 동시후킹
             self.hookThread.start()  # 쓰레드 시작
             self.hookThread_name = self.hookThread.ident  # 쓰레드 살아있는지 여부 저장 / is_alive는 느릴 수 있음
             return True
@@ -207,7 +214,6 @@ if __name__ == '__main__':
                 txwindow.append(*args, **kwargs)
             except queue.Empty as e:
                 print(e.args)
-
 
 
     append_thread = threading.Thread(target=append_manager, daemon=True, name='AppendThread')
