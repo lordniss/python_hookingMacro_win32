@@ -42,6 +42,7 @@ class HookingMacroWin32:
         #####
         # class flag setting
         self._ismain = False
+        self.hookstate = {'key':True, 'mouse':False}
 
     def start_main(self):
         if not self.text_thread.is_alive():  # text_window 실행 및 설정
@@ -76,6 +77,7 @@ class HookingMacroWin32:
             " - If you want to HOOK, press HOOK button or 'F3'\n",
             " - When you wanna STOP YOUR ACTION, press STOP button or 'ESC'\n",
             " - If you want open ANOTHER MACRO FILE, press OPEN button or 'F5'\n",
+            " - Change Keyboard and Mouse Hooking State, press 'F6'\n",
             " - If you need to DISABLE SHOW HOOKED KEY, press 'F7'\n"
             "           (it is usefull to speed up hooking process)\n",
             " - If you want to press key in DIRECTX GAME,\n"
@@ -161,6 +163,19 @@ class HookingMacroWin32:
             elif VK_CODE['F5'] == int(lParam[0]):
                 # self.text_thread.append('F5 inputed')
                 self._push_open_button()
+            elif VK_CODE['F6'] == int(lParam[0]):
+                if not self.hookstate['key']:
+                    self.hookstate['key'] = True
+                    self.hookstate['mouse'] = True
+                    self.text_thread.append('keyboard hooking only')
+                elif not self.hookstate['mouse']:
+                    self.hookstate['key'] = False
+                    self.hookstate['mouse'] = True
+                    self.text_thread.append('mouse hooking only')
+                else:
+                    self.hookstate['key'] = True
+                    self.hookstate['mouse'] = False
+                    self.text_thread.append('both keyboard and mouse hooking')
             elif VK_CODE['F7'] == int(lParam[0]):
                 # self.text_thread.append("F7 inputed")
                 if self.hooking_thread.action_visible:

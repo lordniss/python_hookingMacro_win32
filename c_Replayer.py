@@ -19,6 +19,7 @@ from python_Hook_Macro_win32.VK_CODE import VK_CODE
 import ctypes
 from python_Hook_Macro_win32.c_Macro_win32_directX import PressKey, ReleaseKey
 from python_Hook_Macro_win32.DirectInput_CODE import DI_CODE
+from collections import OrderedDict
 
 
 class ReplayThread:
@@ -27,6 +28,7 @@ class ReplayThread:
         self.log_path = log_path
         self.run_th = None
         self.stopper = False
+        self.command_list: list = []
         # for append
         self.send_queue = send_queue
         # set press type  kb_event/directX  # default : event_input
@@ -37,29 +39,36 @@ class ReplayThread:
         self.send_queue.put((args, kwargs))
 
     def _get_cmdlist(self):  # log파일에서 cmd 불러와서 list(OrderDict (any, any)) 로 읽어들인다.
+        if self.command_list != []:
+            return self.command_list
         with open(self.log_path, 'r', encoding='utf-8') as f:
             cmdlist = [w for w in csv.DictReader(f, delimiter=',')]
             f.close()
+            self.print1(cmdlist)
         return cmdlist
 
     def _keypress(self):
         if self.key_input_type == "event_input":
             def ftn(input_key):
                 win32api.keybd_event(VK_CODE[input_key], 0, 0, 0)
+
             return ftn
         elif self.key_input_type == "directx_input":
             def ftn(input_key):
                 PressKey(DI_CODE[input_key])
+
             return ftn
 
     def _keyrelease(self):
         if self.key_input_type == "event_input":
             def ftn(input_key):
                 win32api.keybd_event(VK_CODE[input_key], 0, win32con.KEYEVENTF_KEYUP, 0)
+
             return ftn
         elif self.key_input_type == "directx_input":
             def ftn(input_key):
                 ReleaseKey(DI_CODE[input_key])
+
             return ftn
 
     def replay_runner(self, pace_time=0.01):  # 진짜로 replay 를 하는 부분 / pace_time은 동작과 동작 사이에 최소시간.
@@ -121,10 +130,23 @@ class ReplayThread:
                     break  # replay thread 종료
                 time.sleep(pace_time)  # pace_time 의 간격 사이에 명령이 다 이루어져야, 다음 pace_time을 지난다.
         self.print1("replay ended")
+        self.command_list.clear()  # clear inputed command list
         return
 
     def start_replay(self, log_path="c:\\KeyMouseLog.txt"):  # thread setting
         self.log_path = log_path
+        self.command_list = []
+        self.stopper = False
+        if self.run_th is None or not self.run_th.is_alive():  # runner thread 가 없거나 실행되지 않았을 경우
+            self.run_th = threading.Thread(target=self.replay_runner,
+                                           args=(), name="RunnerThread")  # 기록한 키&마우스 로그 실행.
+            self.run_th.start()
+
+    def start_replay_list(self, command_list=list()):
+        if command_list == []:
+            self.print1('no command inputed')
+            return
+        self.command_list = list(command_list)
         self.stopper = False
         if self.run_th is None or not self.run_th.is_alive():  # runner thread 가 없거나 실행되지 않았을 경우
             self.run_th = threading.Thread(target=self.replay_runner,
@@ -195,6 +217,16 @@ if __name__ == '__main__':
         btn3=lambda: stop_tread(),
     )
     threading.Thread(target=lambda: append_thread(), name="append thread").start()
+
+    inputlist = [
+        dict({'type': 'start', 'input': 'state_keys', 'info': '0000', 'time': '0'}),
+        dict({'type': 'keyboard', 'input': 'e', 'info': 'keydown', 'time': '1.1'}),
+        OrderedDict({'type': 'keyboard', 'input': 'e', 'info': 'keyup', 'time': '1.11'}),
+        OrderedDict({'type': 'keyboard', 'input': 'f', 'info': 'keydown', 'time': '1.2'}),
+        OrderedDict({'type': 'keyboard', 'input': 'f', 'info': 'keyup', 'time': '1.21'}),
+        OrderedDict({'type': 'end', 'input': '', 'info': '', 'time': '1.5'}),
+    ]
+    txwindow.set_button_action(btn0=lambda: replayer.start_replay_list(inputlist))
 
     while True:
         time.sleep(1)

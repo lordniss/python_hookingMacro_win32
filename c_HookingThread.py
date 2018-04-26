@@ -64,7 +64,7 @@ class HookingThread:
             hooked_key = VK_REVERSE_CODE[lParam[0]]
             key_info = "keydown"
         # keylog 기록
-        dd = ['keyboard', hooked_key, key_info, str(time.time())]
+        dd = ['keyboard', hooked_key, key_info, str(time.time()-self.starttime)]
         self.keymouselog.append(dd)
         if self.action_visible:
             self.print1(self.keymouselog[-1])  # 창에 가장 최신의 keymouselog 입력정보 출력
@@ -78,7 +78,7 @@ class HookingThread:
             dd = ['mouse',
                   "LBUTTONDOWN" if wParam == win32con.WM_LBUTTONDOWN else "RBUTTONDOWN",
                   str(lParam[0]) + "|" + str(lParam[1]),
-                  str(time.time())]  # lParam[0], lParam[1] 은 각각 x좌표, y좌표이다. 그 이상은 없음.
+                  str(time.time()-self.starttime)]  # lParam[0], lParam[1] 은 각각 x좌표, y좌표이다. 그 이상은 없음.
             self.keymouselog.append(dd)
             if self.action_visible:
                 self.print1(self.keymouselog[-1])  # 창에 가장 최신의 keymouselog 입력정보 출력
@@ -88,7 +88,7 @@ class HookingThread:
             dd = ['mouse',
                   "LBUTTONUP" if wParam == win32con.WM_LBUTTONUP else "RBUTTONUP",
                   str(lParam[0]) + "|" + str(lParam[1]),
-                  str(time.time())]  # lParam[0], lParam[1] 은 각각 x좌표, y좌표이다. 그 이상은 없음.
+                  str(time.time()-self.starttime)]  # lParam[0], lParam[1] 은 각각 x좌표, y좌표이다. 그 이상은 없음.
             self.keymouselog.append(dd)
             if self.action_visible:
                 self.print1(self.keymouselog[-1])  # 창에 가장 최신의 keymouselog 입력정보 출력
@@ -134,13 +134,13 @@ class HookingThread:
             # print(stateget)  # 마지막 네번째 kor/en_key 값이 이상함.
             cwrite.writeheader()
             cwrite.writerow({'type': 'start', 'input': 'state_keys',  # start log 시작
-                             'info': ''.join(self.stateget), 'time': str(self.starttime)})
+                             'info': ''.join(self.stateget), 'time': str(self.starttime-self.starttime)})
             for log in self.keymouselog:
                 kk = list(keys)
                 tmpdic = {kk.pop(0): x for x in log}
                 cwrite.writerow(tmpdic)
             cwrite.writerow({'type': 'end', 'input': '',  # end log 끝
-                             'info': '', 'time': str(self.endtime)})
+                             'info': '', 'time': str(self.endtime-self.starttime)})
             self.keymouselog = []  # log 초기화
             f.close()  # Logging 기록
 
