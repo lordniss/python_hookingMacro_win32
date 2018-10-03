@@ -13,17 +13,17 @@ import time
 import win32api
 import win32con
 import threading
-from python_Hook_Macro_win32.c_HookingThread import HookingThread
-from python_Hook_Macro_win32.tk_TextWindow import TextThread
-from python_Hook_Macro_win32.VK_CODE import VK_CODE
+from c_HookingThread import HookingThread
+from tk_TextWindow import TextThread
+from VK_CODE import VK_CODE
 import ctypes
-from python_Hook_Macro_win32.c_Macro_win32_directX import PressKey, ReleaseKey
-from python_Hook_Macro_win32.DirectInput_CODE import DI_CODE
+from c_Macro_win32_directX import PressKey, ReleaseKey
+from DirectInput_CODE import DI_CODE
 from collections import OrderedDict
 
 
 class ReplayThread:
-    def __init__(self, log_path="c:\\KeyMouseLog.txt", send_queue: queue.Queue = None):
+    def __init__(self, log_path="c:\\development\\KeyMouseLog.txt", send_queue: queue.Queue = None):
         # for replayer
         self.log_path = log_path
         self.run_th = None
@@ -133,7 +133,7 @@ class ReplayThread:
         self.command_list.clear()  # clear inputed command list
         return
 
-    def start_replay(self, log_path="c:\\KeyMouseLog.txt"):  # thread setting
+    def start_replay(self, log_path="c:\\development\\KeyMouseLog.txt"):  # thread setting
         self.log_path = log_path
         self.command_list = []
         self.stopper = False
@@ -168,7 +168,7 @@ class ReplayThread:
 
 
 if __name__ == '__main__':
-    log_path = "C:/KeyMouseLog.txt"
+    log_path = "C:/development/KeyMouseLog.txt"
     txwindow = TextThread()  # 창 쓰레드 준비
     txwindow.start_window()
     txwindow.update_window_attribute(btn2="Start", btn3="Stop")

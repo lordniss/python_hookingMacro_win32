@@ -14,8 +14,8 @@ import win32con
 import win32gui
 from ctypes import byref, windll, WinDLL, CFUNCTYPE, c_int, POINTER, c_void_p
 from ctypes.wintypes import MSG
-from python_Hook_Macro_win32.VK_CODE import VK_CODE, VK_REVERSE_CODE
-from python_Hook_Macro_win32.tk_TextWindow import TextThread
+from VK_CODE import VK_CODE, VK_REVERSE_CODE
+from tk_TextWindow import TextThread
 
 
 class HookingThread:
@@ -25,7 +25,7 @@ class HookingThread:
         'log_path', 'keymouselog', 'send_queue', 'action_visible',
     )  # 속도상승을 위한 slots 설정
 
-    def __init__(self, log_path="C:/KeyMouseLog.txt", send_queue: queue.Queue = None):
+    def __init__(self, log_path="C:/development\\KeyMouseLog.txt", send_queue: queue.Queue = None):
         # 후킹준비하기
         self.hooked, self.hooked2 = None, None  # 키보드 후킹 핸들러 전달용, 마우스 후킹 핸들러 전달용
         self.user32 = WinDLL('user32', use_last_error=True)  # user32 = windll.user32
@@ -194,7 +194,7 @@ class HookingThread:
 
 
 if __name__ == '__main__':
-    log_path = "C:/KeyMouseLog.txt"
+    log_path = "C:/Development/KeyMouseLog.txt"
     txwindow = TextThread()  # 창 쓰레드 준비
     txwindow.start_window()  # 창 쓰레드 시작. start가 아니라 start_window로 실행할 것.
     send_queue = queue.Queue()

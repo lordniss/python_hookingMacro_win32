@@ -1,7 +1,7 @@
 import ctypes
 import queue
 import time
-from python_Hook_Macro_win32.c_HookingThread import HookingThread
+from c_HookingThread import HookingThread
 
 SendInput = ctypes.windll.user32.SendInput
 

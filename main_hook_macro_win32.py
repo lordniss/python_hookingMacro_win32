@@ -12,17 +12,17 @@ import win32gui
 import win32con
 from ctypes import byref, windll, WinDLL, CFUNCTYPE, c_int, POINTER, c_void_p
 from ctypes.wintypes import MSG
-from python_Hook_Macro_win32.tk_TextWindow import TextThread
-from python_Hook_Macro_win32.c_HookingThread import HookingThread
-from python_Hook_Macro_win32.c_Replayer import ReplayThread
-from python_Hook_Macro_win32.VK_CODE import VK_CODE
+from tk_TextWindow import TextThread
+from c_HookingThread import HookingThread
+from c_Replayer import ReplayThread
+from VK_CODE import VK_CODE
 import time
 import threading
 import queue
 
 
 class HookingMacroWin32:
-    def __init__(self, log_path="c:\\keymouselog.txt"):
+    def __init__(self, log_path="c:\\development\\keymouselog.txt"):
         #####
         # initialize classes
         self.append_queue = queue.Queue()
@@ -151,7 +151,7 @@ class HookingMacroWin32:
     def _keychk_proc(self, nCode, wParam, lParam):  # replay중 runner를 종료시키기 위한 프로시져
         if wParam is win32con.WM_KEYDOWN:  # keydown 처리
             if VK_CODE['esc'] == int(lParam[0]):
-                # self.text_thread.append("ESC inputed")
+                self.text_thread.append("ESC inputed")
                 self._stop_sub()
             elif VK_CODE['F2'] == int(lParam[0]):
                 # self.text_thread.append("F2 inputed")
@@ -216,7 +216,7 @@ class HookingMacroWin32:
 
 
 if __name__ == '__main__':
-    log_path = "c:\\KeyMouseLog.txt"
+    log_path = "c:\\development\\KeyMouseLog.txt"
     main_class = HookingMacroWin32(log_path=log_path)
     main_class.start_main()
 

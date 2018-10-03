@@ -5,7 +5,7 @@
  TextWindow를 TextThread로 생성해서 start_window로 시작하고, append(string, end="", trace=True)로 내용추가한다.
 """
 import tkinter.filedialog
-from python_Hook_Macro_win32.tk_ROText import ROText
+from tk_ROText import ROText
 import tkinter
 from tkinter import *
 import threading
